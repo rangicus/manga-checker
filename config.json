@@ -1,0 +1,47 @@
+{
+	"anilistUsername": "rangicus",
+	"manga": [
+		{
+			"name": "Chainsaw Man",
+			"anilistId": 105778,
+			
+			"siteId": "chainsaw-man",
+			"provider": "viz"
+		},
+		{
+			"name": "Hunter x Hunter",
+			"anilistId": 30026,
+
+			"siteId": "hunter-x-hunter",
+			"provider": "viz"
+		},
+		{
+			"name": "One Piece",
+			"anilistId": 30013,
+
+			"siteId": "one-piece",
+			"provider": "viz"
+		},
+		{
+			"name": "Boruto",
+			"anilistId": 87178,
+
+			"siteId": "boruto",
+			"provider": "viz"
+		},
+		{
+			"name": "Crazy Diamond's Demonic Heartbreak",
+			"anilistId": 138070,
+
+			"siteId": "0d89de3b-454b-422e-9eed-c17402cf1604",
+			"provider": "mangadex"
+		},
+		{
+			"name": "Vinland Saga",
+			"anilistId": 30642,
+
+			"siteId": "5d1fc77e-706a-4fc5-bea8-486c9be0145d",
+			"provider": "mangadex"
+		}
+	]
+}
