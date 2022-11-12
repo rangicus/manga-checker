@@ -5,6 +5,8 @@ import { load as cheerioLoad } from "cheerio";
 import fs from "fs";
 import moment from "moment";
 
+import Anilist from "./Anilist";
+
 // Types
 
 type MangaProvider = `viz` | `mangadex`;
@@ -23,11 +25,13 @@ interface Manga {
 }
 
 interface Result {
-	name: string;
+	manga: Manga;
+
 	chapter: number;
+	url: string;
+
 	release: Date;
 	releaseRelative: string;
-	url: string;
 }
 
 interface MangaDexSeriesResponse {
@@ -58,7 +62,13 @@ interface MangaDexSeriesResponse {
 
 // Validation Functions
 
-function objHasProp<X extends {}, Y extends PropertyKey> (obj: X, prop: Y): obj is X & Record<Y, unknown> {
+export function isObject (x: unknown): x is object {
+	return (
+		typeof x === `object` && x !== null
+	)
+}
+
+export function objHasProp<X extends {}, Y extends PropertyKey> (obj: X, prop: Y): obj is X & Record<Y, unknown> {
 	return obj.hasOwnProperty(prop);
 }
 
@@ -100,39 +110,6 @@ function isConfigData (x: unknown): x is ConfigData {
 
 // Functions
 
-async function anilistGql (query: string, variables?: Record<string, any>) {
-	if (!variables) variables = {};
-
-	return await axios({
-		url: `https://graphql.anilist.co`,
-		method: `POST`,
-		data: {
-			query, variables,
-		},
-	});
-}
-
-async function getAnilistProgress (userName: string, mediaId: number) {
-	interface ProgressResponse {
-		data: {
-			MediaList: {
-				progress: number;
-			}
-		}
-	}
-	const res = await anilistGql(
-		`query ($userName: String, $mediaId: Int!) {
-			MediaList(userName: $userName, mediaId: $mediaId) {
-				progress
-			}
-		}`,
-		{ userName, mediaId }
-	);
-
-	const data = res.data as ProgressResponse;
-	return data.data.MediaList.progress;
-}
-
 async function scrapeViz (manga: Manga): Promise<Result> {
 	try {
 		const { data } = await axios.get(`https://www.viz.com/shonenjump/chapters/` + manga.siteId);
@@ -154,10 +131,9 @@ async function scrapeViz (manga: Manga): Promise<Result> {
 		if (!urlString) throw new Error(`Couldn't get chapter link.`);
 
 		return {
-			name: manga.name,
+			manga, chapter, release,
 			url: `https://www.viz.com` + urlString,
 			releaseRelative: moment(release).fromNow(),
-			chapter, release,
 		};
 	} catch (error) {
 		console.error(error);
@@ -182,9 +158,8 @@ async function scrapeMangadex (manga: Manga): Promise<Result> {
 	const release = new Date( target.attributes.readableAt );
 
 	return {
-		name: manga.name,
+		manga, release,
 		chapter: Number.parseInt( target.attributes.chapter ),
-		release: release,
 		releaseRelative: moment(release).fromNow(),
 		url: `https://mangadex.org/chapter/${ target.id }`,
 	};
@@ -203,6 +178,10 @@ function getConfig (): ConfigData {
 	else throw new Error(`Invalid Config data.`);
 }
 
+// Globals
+
+const ani = new Anilist(`rangicus`, true);
+
 // Main
 
 async function main () {
@@ -211,26 +190,44 @@ async function main () {
 	config.manga.sort((a, b) => a.name.localeCompare(b.name));
 
 	// Get results.
-	const finishedResults: Result[] = [];
 	const results: Result[] = [];
 	for (let i = 0; i < config.manga.length; i ++) {
 		const target = config.manga[i];
 		console.log(`Scraping`, target.name, `(${i + 1} / ${config.manga.length})`, `...`);
-
+		
 		const result = await scrapeManga(target);
-		const progress = await getAnilistProgress(config.anilistUsername, target.anilistId);
-
-		if (progress >= result.chapter) finishedResults.push(result);
-		else results.push(result);
+		results.push(result);
 	}
-	results.sort((a, b) => b.release.getTime() - a.release.getTime());
+
+	// Get anilist data.
+	const completedResults: Result[] = [];
+	const behindResults: Result[] = [];
+	
+	console.log(`Getting Anilist data...`);
+	const mediaListCollection = await ani.getUserManga();
+	for (const list of mediaListCollection.lists) {
+		for (const media of list.entries) {
+			const id = media.media.id;
+			const result = results.find((x) => x.manga.anilistId === id);
+			if (result) {
+				if (media.progress >= result.chapter) completedResults.push(result);
+				else behindResults.push(result);
+			}
+		}
+	}
 
 	// Display Results
 	console.log(`- - -`);
-	console.log(`Caught up (${finishedResults.length}):`, finishedResults.map((x) => x.name).join(`, `), `\n`);
-	for (const result of results) {
-		console.log(`${result.name}: ${result.chapter} - ${result.releaseRelative} (${result.url})`);
+	
+	completedResults.sort((a, b) => a.manga.name.localeCompare(b.manga.name));
+	console.log(`Caught up (${completedResults.length}):`, completedResults.map((x) => x.manga.name).join(`, `), `\n`);	
+
+	behindResults.sort((a, b) => b.release.getTime() - a.release.getTime());
+	for (const result of behindResults) {
+		console.log(`${result.manga.name}: ${result.chapter} - ${result.releaseRelative} (${result.url})`);
 	}
 }
+
+for (let i = 0; i < 10; i ++) console.log(`!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`);
 
 main();
