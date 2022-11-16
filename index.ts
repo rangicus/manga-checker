@@ -216,18 +216,30 @@ async function main () {
 		}
 	}
 
+	// Get Results not on Anilist.
+	const trackedManga: number[] = [ ...completedResults.map((x) => x.manga.anilistId), ...behindResults.map((x) => x.manga.anilistId) ];
+	const untrackedResults: Result[] = results.filter((x) => !trackedManga.includes(x.manga.anilistId));
+
 	// Display Results
 	console.log(`- - -`);
 	
-	completedResults.sort((a, b) => a.manga.name.localeCompare(b.manga.name));
-	console.log(`Caught up (${completedResults.length}):`, completedResults.map((x) => x.manga.name).join(`, `), `\n`);	
+	if (untrackedResults.length > 0) {
+		untrackedResults.sort((a, b) => a.manga.name.localeCompare(b.manga.name));
+		console.log(`Untracked:`, untrackedResults.map((x) => x.manga.name).join(`, `));
+	}
+	
+	if (completedResults.length > 0) {
+		completedResults.sort((a, b) => a.manga.name.localeCompare(b.manga.name));
+		console.log(`Caught up (${completedResults.length}):`, completedResults.map((x) => x.manga.name).join(`, `), `\n`);	
+	}
 
-	behindResults.sort((a, b) => b.release.getTime() - a.release.getTime());
-	for (const result of behindResults) {
-		console.log(`${result.manga.name}: ${result.chapter} - ${result.releaseRelative} (${result.url})`);
+	if (behindResults.length > 0) {
+		behindResults.sort((a, b) => b.release.getTime() - a.release.getTime());
+		for (const result of behindResults) {
+			console.log(`${result.manga.name}: ${result.chapter} - ${result.releaseRelative} (${result.url})`);
+		}
 	}
 }
 
 for (let i = 0; i < 10; i ++) console.log(`!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`);
-
 main();
